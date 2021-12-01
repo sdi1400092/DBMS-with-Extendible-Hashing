@@ -21,25 +21,28 @@ typedef struct {
 }buckets;
 
 typedef struct {
+  char file_name[40];
   buckets **bucket;
   int global_depth;
 }HashTable;
 
 HT_ErrorCode HT_Init() {
   //insert code here
-  HashTable *HT;
-  HT = (HashTable*)malloc(sizeof(HashTable));
-  if (HT != NULL){
-    HT->bucket = NULL;
-    HT->global_depth=0;
-    return HT_OK;
-  }
-  return HT_ERROR;
+  return HT_OK;
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   //insert code here
-  return HT_OK;
+  HashTable *HT;
+  HT = (HashTable*)malloc(sizeof(HashTable));
+  if (HT != NULL){
+    strcpy(HT->file_name, filename);
+    HT->bucket = NULL;
+    HT->global_depth = depth;
+    printf("HT created with filename: %s\n", HT->file_name);
+    return HT_OK;
+  }
+  return HT_ERROR;
 }
 
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){

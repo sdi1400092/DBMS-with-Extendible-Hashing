@@ -27,12 +27,16 @@ typedef struct {
   int global_depth;
 }HashTable;
 
-int Open_files[MAX_OPEN_FILES]=NULL;
+int Open_files[MAX_OPEN_FILES];
 
 
 
 HT_ErrorCode HT_Init() {
-  //insert code here  
+  //insert code here 
+  int i;
+  for(i=0;i<MAX_OPEN_FILES;i++){
+    Open_files[i]=-1;
+  } 
   return HT_OK;
 }
 
@@ -46,10 +50,12 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
   //insert code here
   int i;
-  CALL_BF(BF_OpenFile(fileName,&indexDesc));
+  int temp;
+  CALL_BF(BF_OpenFile(fileName,&temp));
+  *indexDesc=temp;
   for(i=0 ; i < MAX_OPEN_FILES ; i++){
-    if(Open_files[i] != NULL){
-      Open_files[i] = indexDesc;
+    if(Open_files[i] == -1){
+      Open_files[i] = *indexDesc;
       break;
     }
   }
@@ -58,6 +64,13 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
  
 HT_ErrorCode HT_CloseFile(int indexDesc) {
   //insert code here
+  int i;
+  for(i=0;i<MAX_OPEN_FILES;i++){
+    if (Open_files[i]=indexDesc){
+      Open_files[i]=-1;
+    }
+  }
+  CALL_BF(BF_CloseFile(indexDesc));
   return HT_OK;
 }
 

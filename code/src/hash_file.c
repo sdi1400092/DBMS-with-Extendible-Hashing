@@ -44,7 +44,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   int id;
   CALL_BF(BF_CreateFile(filename));
   HashTable *HT;
-
+  return HT_OK; 
 }
 
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){

@@ -20,6 +20,7 @@ typedef struct {
   //BF_Block *blocks;
   // temp = HT->bucket[3]->number_of_block;
   // CALL_BF(BF_GetBlock(file_desc, temp, &block));
+  int **HashCode;
   int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
   int number_of_registries;
   int local_depth;
@@ -33,7 +34,14 @@ typedef struct {
 
 int Open_files[MAX_OPEN_FILES];
 
-
+int **HashFunction(int id, int depth){
+  int i, binary[32];
+  for(i=0;i<depth;i++){
+    binary[i] = id%2;
+    id = id/2;
+  }
+  return binary;
+}
 
 HT_ErrorCode HT_Init() {
   //insert code here 
@@ -45,18 +53,27 @@ HT_ErrorCode HT_Init() {
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
-  int id, i, file_desc;
+  int id, i, j, n, file_desc, **binary;
   char *data;
 
   CALL_BF(BF_CreateFile(filename));
 
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
+  for(i=0;i<depth;i++){
+    HT->bucket[i]->HashCode[i] = (int *) malloc(sizeof(int));
+  }
+  
   for(i=0;i<(2^depth);i++){
     HT->bucket[i] = (buckets *) malloc(sizeof(buckets));
     HT->bucket[i]->local_depth = depth;
-    HT->bucket[i]->maxSize = MAX_SIZE_OF_BUCKET;
+    HT->bucket[i]->maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
     HT->bucket[i]->number_of_registries = 0;
+    n=i;
+    for(j=0;n>0;j++){
+      HT->bucket[i]->HashCode[j]=n%2;
+      n=n/2;
+    }
   }
   HT->global_depth = depth;
 
@@ -112,7 +129,32 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   //insert code here
+  int **hashing, i, offset;
+  char *data;
+  Record *temp = &record;
+  HashTable *HT;
+  HT = (HashTable *) malloc(sizeof(HashTable));
   
+  BF_Block *block;
+  BF_Block_Init(&block);
+  CALL_BF(BF_GetBlock(indexDesc, 0, block));
+  data = BF_Block_GetData(block);
+  memcpy(HT, data, sizeof(HashTable));
+
+  hashing = HashFunction(record.id, HT->global_depth);
+
+  for(i=0;i<(2^HT->global_depth);i++){
+    if (HT->bucket[i]->HashCode == hashing){
+      break;
+    }
+  }
+  CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block));
+  data = BF_Block_GetData(block);
+  offset = HT->bucket[i]->number_of_registries;
+  if (offset < HT->bucket[i]->maxSize){
+    memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
+    BF_Block_SetDirty(block);
+  }
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {

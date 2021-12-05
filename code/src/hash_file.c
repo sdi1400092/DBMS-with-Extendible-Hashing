@@ -17,9 +17,6 @@
 }
 
 typedef struct {
-  //BF_Block *blocks;
-  // temp = HT->bucket[3]->number_of_block;
-  // CALL_BF(BF_GetBlock(file_desc, temp, &block));
   int **HashCode;
   int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
   int number_of_registries;
@@ -60,21 +57,19 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  // for(i=0;i<depth;i++){
-  //   HT->bucket[i]->HashCode[i] = (int) malloc(sizeof(int));
+  printf("lala\n");
+  // for(i=0;i<depth;i++){ //segmentation fault
+  //   HT->bucket[i]->HashCode[i] =malloc(sizeof(int));
   // }
-  printf("la\n");
-  HT->bucket[i]->HashCode = (int *) malloc( depth * sizeof(int));
-  printf("1\n");
-
+  printf("lala\n");
   for(i=0;i<(2^depth);i++){
     HT->bucket[i] = (buckets *) malloc(sizeof(buckets));
     HT->bucket[i]->local_depth = depth;
     HT->bucket[i]->maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
     HT->bucket[i]->number_of_registries = 0;
     n=i;
-    for(j=0;n>0;j++){
-      HT->bucket[i]->HashCode[j]=n%2;
+    for(j=0;j<depth;j++){
+      *(HT->bucket[i]->HashCode[j])=n%2;
       n=n/2;
     }
   }
@@ -91,15 +86,16 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 
   BF_Block *temp_block2;
   BF_Block_Init(&temp_block2);
-  for(i=0;i<(2^depth);i++){
+  for(i=0;i<(2^depth);i++){ 
     CALL_BF(BF_AllocateBlock(file_desc, temp_block2));
+    int block_num;
+    HT->bucket[i]->number_of_block= BF_GetBlockCounter(file_desc,&block_num) - 1;    
     CALL_BF(BF_UnpinBlock(temp_block2));
   }
 
   printf("File: %s is created\n", filename);
   CALL_BF(BF_CloseFile(file_desc));
   free(HT);
-  printf("2\n");
 
   return HT_OK;
 }
@@ -150,20 +146,20 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   HashFunction(record.id, HT->global_depth, &hashing);
 
   for(i=0;i<(2^HT->global_depth);i++){
-    if (HT->bucket[i]->HashCode == hashing){
+    if (*(HT->bucket[i]->HashCode)== hashing){
       break;
     }
   }
   printf("5\n");
-  CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block));
-  data = BF_Block_GetData(block);
-  offset = HT->bucket[i]->number_of_registries;
+  // CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block)); //segmentation fault
+  // data = BF_Block_GetData(block);
+  // offset = HT->bucket[i]->number_of_registries;
   printf("6\n");
-  if (offset < HT->bucket[i]->maxSize){
-    memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
-    BF_Block_SetDirty(block);
-    CALL_BF(BF_UnpinBlock(block));
-  }
+  // if (offset < HT->bucket[i]->maxSize){    //segmentation falut
+  //   memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
+  //   BF_Block_SetDirty(block);
+  //   CALL_BF(BF_UnpinBlock(block));
+  // }
   printf("7\n");
 }
 

@@ -34,13 +34,13 @@ typedef struct {
 
 int Open_files[MAX_OPEN_FILES];
 
-int **HashFunction(int id, int depth){
+void HashFunction(int id, int depth, int **hashing){
   int i, binary[32];
   for(i=0;i<depth;i++){
     binary[i] = id%2;
     id = id/2;
   }
-  return binary;
+  *hashing = binary;
 }
 
 HT_ErrorCode HT_Init() {
@@ -60,10 +60,13 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  for(i=0;i<depth;i++){
-    HT->bucket[i]->HashCode[i] = (int *) malloc(sizeof(int));
-  }
-  
+  // for(i=0;i<depth;i++){
+  //   HT->bucket[i]->HashCode[i] = (int) malloc(sizeof(int));
+  // }
+  printf("la\n");
+  HT->bucket[i]->HashCode = (int *) malloc( depth * sizeof(int));
+  printf("1\n");
+
   for(i=0;i<(2^depth);i++){
     HT->bucket[i] = (buckets *) malloc(sizeof(buckets));
     HT->bucket[i]->local_depth = depth;
@@ -96,6 +99,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   printf("File: %s is created\n", filename);
   CALL_BF(BF_CloseFile(file_desc));
   free(HT);
+  printf("2\n");
 
   return HT_OK;
 }
@@ -129,32 +133,38 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   //insert code here
-  int **hashing, i, offset;
+  int *hashing, i, offset;
   char *data;
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
+  printf("3\n");
   
   BF_Block *block;
   BF_Block_Init(&block);
   CALL_BF(BF_GetBlock(indexDesc, 0, block));
   data = BF_Block_GetData(block);
   memcpy(HT, data, sizeof(HashTable));
+  printf("4\n");
 
-  hashing = HashFunction(record.id, HT->global_depth);
+  HashFunction(record.id, HT->global_depth, &hashing);
 
   for(i=0;i<(2^HT->global_depth);i++){
     if (HT->bucket[i]->HashCode == hashing){
       break;
     }
   }
+  printf("5\n");
   CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block));
   data = BF_Block_GetData(block);
   offset = HT->bucket[i]->number_of_registries;
+  printf("6\n");
   if (offset < HT->bucket[i]->maxSize){
     memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
     BF_Block_SetDirty(block);
+    CALL_BF(BF_UnpinBlock(block));
   }
+  printf("7\n");
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {

@@ -142,8 +142,8 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   for(i=0;i<(2^HT->global_depth);i++){
     for(int j=(HT->bucket[i]->local_depth -1);j>0;j--){
       if (HT->bucket[i]->HashCode[j]== hashing[j]){
-      break;
-    }
+        break;
+      }
     }
   }
   CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block));
@@ -156,10 +156,40 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   }
   else{
     if(HT->bucket[i]->local_depth<HT->global_depth){
-      
+      //split
     }
     else{
-        HT->global_depth+=1;
+      //epxand
+      int j;
+      for(j=2^HT->global_depth;j<(2^(HT->global_depth + 1));j++){
+        HT->bucket[j] = (buckets *) malloc(sizeof(buckets));
+        HT->bucket[j]->local_depth = HT->bucket[j-(2^HT->global_depth)]->local_depth;
+        HT->bucket[j]->maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
+        HT->bucket[j]->number_of_registries = HT->bucket[j-(2^HT->global_depth)]->number_of_registries;
+        HT->bucket[j]->number_of_block = HT->bucket[j-(2^HT->global_depth)]->number_of_block;
+      }
+      //sort by number of block
+      buckets *temp;
+      int z;
+      for(z=0;z<(2^HT->global_depth);z++){
+        for(j=(2^HT->global_depth);j>0;j--){
+          if (HT->bucket[j]->number_of_block <= HT->bucket[j-1]->number_of_block){
+            temp = HT->bucket[j];
+            HT->bucket[j] = HT->bucket[j-1];
+            HT->bucket[j] = temp;
+          }
+        }
+      }
+      HT->global_depth += 1;
+      //Hashing
+      for(j=0;j<2^HT->global_depth;j++){
+        HT->bucket[j]->HashCode = (int *) malloc(HT->global_depth*sizeof(int));
+        int n = j;
+        for(z=0;z<HT->global_depth;z++){
+          HT->bucket[j]->HashCode[z]=n%2;
+          n=n/2;
+        }
+      }
     }
   }
 }

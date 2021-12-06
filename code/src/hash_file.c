@@ -170,8 +170,9 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
         HT->bucket[z]->local_depth+=1;
         z++;
       }
+      int blocknum;
       for(int j=i+(2^k)-1;j>(i+((2^k)/2));j--){
-        HT->bucket[j]->number_of_block=BF_GetBlockCounter(indexDesc) - 1;
+        HT->bucket[j]->number_of_block=BF_GetBlockCounter(indexDesc, &blocknum) - 1;
       }
       int x = HT->bucket[i]->number_of_registries;
       HT->bucket[i]->number_of_registries = 0;

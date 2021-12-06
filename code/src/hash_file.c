@@ -171,7 +171,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
         z++;
       }
       for(int j=i+(2^k)-1;j>(i+((2^k)/2));j--){
-        HT->bucket[j]->number_of_block=BF_getBlockCounter(indexDesc) - 1;
+        HT->bucket[j]->number_of_block=BF_GetBlockCounter(indexDesc) - 1;
       }
       int x = HT->bucket[i]->number_of_registries;
       HT->bucket[i]->number_of_registries = 0;
@@ -206,10 +206,10 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       HT->global_depth += 1;
       buckets **temp;
       for(int j=0;i<(2^(HT->global_depth));j++){
-        temp=(buckets *)malloc(sizeof(buckets));
+        temp[j]=(buckets *)malloc(sizeof(buckets));
       }
       temp=HT->bucket;
-      HT->bucket=(buckets *) realloc(HT->bucket,2^(HT->global_depth)*sizeof(buckets));
+      *(HT->bucket)=(buckets *) realloc(HT->bucket,2^(HT->global_depth)*sizeof(buckets));
       int z=0;
       for(int j=0;j<(2^(HT->global_depth));j+=2){
         HT->bucket[j]=temp[z];

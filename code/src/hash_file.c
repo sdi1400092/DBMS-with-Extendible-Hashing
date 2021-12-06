@@ -157,32 +157,59 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   else{
     if(HT->bucket[i]->local_depth<HT->global_depth){
       //split
+      BF_Block *temp_block;
+      BF_Block_Init(&temp_block);
+      CALL_BF(BF_AllocateBlock(indexDesc, temp_block));
+      data = BF_Block_GetData(temp_block);
+      HT->bucket[i]->local_depth+=1;
+      int k=HT->global_depth-HT->bucket[i]->local_depth;
+      int z=i;
+      for(int j=0;j<2^k;j++){
+        HT->bucket[z]->local_depth+=1;
+        z++;
+      }
+      for(int j=i+(2^k)-1;j>(i+((2^k)/2));j--){
+        HT->bucket[j]->number_of_block=BF_getBlockCounter(indexDesc) - 1;
+      }
     }
     else{
-      //epxand
-      int j;
-      for(j=2^HT->global_depth;j<(2^(HT->global_depth + 1));j++){
-        HT->bucket[j] = (buckets *) malloc(sizeof(buckets));
-        HT->bucket[j]->local_depth = HT->bucket[j-(2^HT->global_depth)]->local_depth;
-        HT->bucket[j]->maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
-        HT->bucket[j]->number_of_registries = HT->bucket[j-(2^HT->global_depth)]->number_of_registries;
-        HT->bucket[j]->number_of_block = HT->bucket[j-(2^HT->global_depth)]->number_of_block;
-      }
-      //sort by number of block
-      buckets *temp;
-      int z;
-      for(z=0;z<(2^HT->global_depth);z++){
-        for(j=(2^HT->global_depth);j>0;j--){
-          if (HT->bucket[j]->number_of_block <= HT->bucket[j-1]->number_of_block){
-            temp = HT->bucket[j];
-            HT->bucket[j] = HT->bucket[j-1];
-            HT->bucket[j] = temp;
-          }
-        }
-      }
+      //expand
+      // int j;
+      // for(j=2^HT->global_depth;j<(2^(HT->global_depth + 1));j++){
+      //   HT->bucket[j] = (buckets *) malloc(sizeof(buckets));
+      //   HT->bucket[j]->local_depth = HT->bucket[j-(2^HT->global_depth)]->local_depth;
+      //   HT->bucket[j]->maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
+      //   HT->bucket[j]->number_of_registries = HT->bucket[j-(2^HT->global_depth)]->number_of_registries;
+      //   HT->bucket[j]->number_of_block = HT->bucket[j-(2^HT->global_depth)]->number_of_block;
+      // }
+      // //sort by number of block
+      // buckets *temp;
+      // int z;
+      // for(z=0;z<(2^HT->global_depth);z++){
+      //   for(j=z+1;j>(2^HT->global_depth);j--){
+      //     if (HT->bucket[j]->number_of_block <= HT->bucket[z]->number_of_block){
+      //       temp = HT->bucket[j];
+      //       HT->bucket[j] = HT->bucket[z];
+      //       HT->bucket[z]=temp;
+      //     }
+      //   }
+      // }
       HT->global_depth += 1;
+      buckets **temp;
+      for(int j=0;i<(2^(HT->global_depth));j++){
+        temp=(buckets *)malloc(sizeof(buckets));
+      }
+      temp=HT->bucket;
+      HT->bucket=(buckets *) realloc(HT->bucket,2^(HT->global_depth)*sizeof(buckets));
+      int z=0;
+      for(int j=0;j<(2^(HT->global_depth));j+=2){
+        HT->bucket[j]=temp[z];
+        HT->bucket[j+1]=temp[z];
+        z+=1;
+      }
+      free(temp);
       //Hashing
-      for(j=0;j<2^HT->global_depth;j++){
+      for(int j=0;j<2^HT->global_depth;j++){
         HT->bucket[j]->HashCode = (int *) malloc(HT->global_depth*sizeof(int));
         int n = j;
         for(z=0;z<HT->global_depth;z++){

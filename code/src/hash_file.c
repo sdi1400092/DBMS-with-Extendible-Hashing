@@ -126,7 +126,7 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   //insert code here
   int *hashing, i, offset;
-  char *data;
+  char *data, *data2;
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
@@ -153,14 +153,16 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
+    HT->bucket[i]->number_of_registries++;
   }
   else{
+    jump:
     if(HT->bucket[i]->local_depth<HT->global_depth){
       //split
       BF_Block *temp_block;
       BF_Block_Init(&temp_block);
       CALL_BF(BF_AllocateBlock(indexDesc, temp_block));
-      data = BF_Block_GetData(temp_block);
+      data2 = BF_Block_GetData(temp_block);
       HT->bucket[i]->local_depth+=1;
       int k=HT->global_depth-HT->bucket[i]->local_depth;
       int z=i;
@@ -170,6 +172,13 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       }
       for(int j=i+(2^k)-1;j>(i+((2^k)/2));j--){
         HT->bucket[j]->number_of_block=BF_getBlockCounter(indexDesc) - 1;
+      }
+      int x = HT->bucket[i]->number_of_registries;
+      HT->bucket[i]->number_of_registries = 0;
+      for(int j=0 ; j<x ; j++){
+        Record *temp_record;
+        memcpy(temp_record, data + j*sizeof(struct Record), sizeof(struct Record));
+        HT_InsertEntry(indexDesc, *temp_record);
       }
     }
     else{
@@ -218,6 +227,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
         }
       }
     }
+    goto jump;
   }
 }
 

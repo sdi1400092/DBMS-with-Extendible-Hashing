@@ -17,7 +17,7 @@
 }
 
 typedef struct {
-  int **HashCode;
+  int *HashCode;
   int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
   int number_of_registries;
   int local_depth;
@@ -57,19 +57,15 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  printf("lala\n");
-  // for(i=0;i<depth;i++){ //segmentation fault
-  //   HT->bucket[i]->HashCode[i] =malloc(sizeof(int));
-  // }
-  printf("lala\n");
   for(i=0;i<(2^depth);i++){
     HT->bucket[i] = (buckets *) malloc(sizeof(buckets));
     HT->bucket[i]->local_depth = depth;
     HT->bucket[i]->maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
     HT->bucket[i]->number_of_registries = 0;
     n=i;
+    HT->bucket[i]->HashCode =malloc(depth*sizeof(int));
     for(j=0;j<depth;j++){
-      *(HT->bucket[i]->HashCode[j])=n%2;
+      HT->bucket[i]->HashCode[j]=n%2;
       n=n/2;
     }
   }
@@ -134,33 +130,38 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  printf("3\n");
   
   BF_Block *block;
   BF_Block_Init(&block);
   CALL_BF(BF_GetBlock(indexDesc, 0, block));
   data = BF_Block_GetData(block);
   memcpy(HT, data, sizeof(HashTable));
-  printf("4\n");
 
   HashFunction(record.id, HT->global_depth, &hashing);
 
   for(i=0;i<(2^HT->global_depth);i++){
-    if (*(HT->bucket[i]->HashCode)== hashing){
+    for(int j=(HT->bucket[i]->local_depth -1);j>0;j--){
+      if (HT->bucket[i]->HashCode[j]== hashing[j]){
       break;
     }
+    }
   }
-  printf("5\n");
-  // CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block)); //segmentation fault
-  // data = BF_Block_GetData(block);
-  // offset = HT->bucket[i]->number_of_registries;
-  printf("6\n");
-  // if (offset < HT->bucket[i]->maxSize){    //segmentation falut
-  //   memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
-  //   BF_Block_SetDirty(block);
-  //   CALL_BF(BF_UnpinBlock(block));
-  // }
-  printf("7\n");
+  CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block));
+  data = BF_Block_GetData(block);
+  offset = HT->bucket[i]->number_of_registries;
+  if (offset < HT->bucket[i]->maxSize){
+    memcpy(data + offset*(sizeof(struct Record)), temp, sizeof(struct Record));
+    BF_Block_SetDirty(block);
+    CALL_BF(BF_UnpinBlock(block));
+  }
+  else{
+    if(HT->bucket[i]->local_depth<HT->global_depth){
+      
+    }
+    else{
+        HT->global_depth+=1;
+    }
+  }
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {

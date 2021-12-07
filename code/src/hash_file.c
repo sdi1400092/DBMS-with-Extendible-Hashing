@@ -40,11 +40,34 @@ void HashFunction(int id, int depth, int **hashing){
   *hashing = binary;
 }
 
+void printRecord(Record record){
+  printf("Id: %d\n",record.id);
+  int i;
+  printf("Name: ");
+  for(i=0;i<15;i++){
+    printf("%c",record.name[i]);
+    //if(record.name[i+1]==NULL) break;
+  }
+  printf("\n");
+  printf("Surname: ");
+  for(i=0;i<20;i++){
+    printf("%c",record.surname[i]);
+    //if(record.surname[i+1]==NULL) break;
+  }
+  printf("\n");
+  printf("City: ");
+  for(i=0;i<20;i++){
+    printf("%c",record.city[i]);
+    //if(record.city[i+1]==NULL) break;
+  }
+  printf("\n");
+}
+
 HT_ErrorCode HT_Init() {
   //insert code here 
   int i;
   for(i=0;i<MAX_OPEN_FILES;i++){
-    Open_files[i]=-1;
+    Open_files[i]=-1;   
   } 
   return HT_OK;
 }
@@ -135,14 +158,14 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   BF_Block_Init(&block);
   CALL_BF(BF_GetBlock(indexDesc, 0, block));
   data = BF_Block_GetData(block);
-  memcpy(HT, data, sizeof(HashTable));
+  memcpy(HT, data, sizeof(HashTable)); //memcpy(data, HT, sizeof(HashTable));?????
 
   HashFunction(record.id, HT->global_depth, &hashing);
 
   for(i=0;i<(2^HT->global_depth);i++){
     for(int j=(HT->bucket[i]->local_depth -1);j>0;j--){
-      if (HT->bucket[i]->HashCode[j]== hashing[j]){
-        break;
+      if (HT->bucket[i]->HashCode[j]== hashing[j]){ //problhma
+        break;                                     
       }
     }
   }
@@ -156,15 +179,15 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     HT->bucket[i]->number_of_registries++;
   }
   else{
-    jump:
+    jump: //temporary
     if(HT->bucket[i]->local_depth<HT->global_depth){
       //split
       BF_Block *temp_block;
       BF_Block_Init(&temp_block);
       CALL_BF(BF_AllocateBlock(indexDesc, temp_block));
       data2 = BF_Block_GetData(temp_block);
-      HT->bucket[i]->local_depth+=1;
-      int k=HT->global_depth-HT->bucket[i]->local_depth;
+      //HT->bucket[i]->local_depth+=1;
+      int k=(HT->global_depth)-(HT->bucket[i]->local_depth);
       int z=i;
       for(int j=0;j<2^k;j++){
         HT->bucket[z]->local_depth+=1;
@@ -175,7 +198,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
         HT->bucket[j]->number_of_block=BF_GetBlockCounter(indexDesc, &blocknum) - 1;
       }
       int x = HT->bucket[i]->number_of_registries;
-      HT->bucket[i]->number_of_registries = 0;
+      HT->bucket[i]->number_of_registries = 0; //??mesa sto for apo panw den eprepe na htan auto?
       for(int j=0 ; j<x ; j++){
         Record *temp_record;
         memcpy(temp_record, data + j*sizeof(struct Record), sizeof(struct Record));
@@ -228,12 +251,30 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
         }
       }
     }
-    goto jump;
+    goto jump;  //temporary
   }
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
   //insert code here
+  BF_Block *block;
+  BF_Block_Init(&block);
+  char *data;
+  HashTable *HT;
+  CALL_BF(BF_GetBlock(indexDesc, 0, block));
+  data = BF_Block_GetData(block);
+  memcpy(HT, data, sizeof(HashTable));
+  if(id!=NULL){
+    int i;
+    for(i=0;i<(2^HT->global_depth);i++){
+      BF_GetBlock(indexDesc,HT->bucket[i]->number_of_block,block);
+      data= BF_Block_GetData(block);
+      //print records of block data
+    }
+  }
+  else{
+
+  }
   return HT_OK;
 }
 

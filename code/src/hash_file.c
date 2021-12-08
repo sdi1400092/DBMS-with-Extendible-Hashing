@@ -161,7 +161,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   memcpy(HT, data, sizeof(HashTable)); //memcpy(data, HT, sizeof(HashTable));?????
 
   HashFunction(record.id, HT->global_depth, &hashing);
-
+  //uafsdjfajsd
   for(i=0;i<(2^HT->global_depth);i++){
     for(int j=(HT->bucket[i]->local_depth -1);j>0;j--){
       if (HT->bucket[i]->HashCode[j]== hashing[j]){ //problhma

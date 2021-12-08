@@ -162,12 +162,15 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
   HashFunction(record.id, HT->global_depth, &hashing);
   //uafsdjfajsd
+  int counter;
   for(i=0;i<(2^HT->global_depth);i++){
+    counter = 0;
     for(int j=(HT->bucket[i]->local_depth -1);j>0;j--){
       if (HT->bucket[i]->HashCode[j]== hashing[j]){ //problhma
-        break;                                     
+        counter++;                                 
       }
     }
+    if(counter == HT->bucket[i]->local_depth) break;
   }
   CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i]->number_of_block, block));
   data = BF_Block_GetData(block);

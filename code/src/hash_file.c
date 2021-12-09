@@ -170,6 +170,8 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
+
+  printRecord(record);
   
   BF_Block *block, *Dirblock;
   BF_Block_Init(&block);
@@ -186,7 +188,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   int counter;
   for(i=0;i<(power(2,HT->global_depth));i++){
     counter=0;
-    for(int j=(HT->bucket[i].local_depth);j>0;j--){
+    for(int j=(HT->bucket[i].local_depth)-1;j>=0;j--){
       if (HT->bucket[i].HashCode[j]== hashing[j]){
         counter++;
       }
@@ -270,13 +272,25 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
   //insert code here
+  Record *record;
+  record = (Record *) malloc(sizeof(Record));
   BF_Block *block;
   BF_Block_Init(&block);
-  char *data;
+  char *data, *records_data;
   HashTable *HT;
+  HT = (HashTable *)malloc(sizeof(HashTable));
+
+  //get directory
   CALL_BF(BF_GetBlock(indexDesc, 0, block));
   data = BF_Block_GetData(block);
-  memcpy(HT, data, sizeof(HashTable));
+  memcpy(&(HT->global_depth), data, sizeof(int));
+  HT->bucket = (buckets *) malloc(sizeof(buckets));
+  for(int i=0;i<power(2,HT->global_depth);i++){
+    memcpy(&(HT->bucket[i]),data+sizeof(int)+i*sizeof(buckets),sizeof(buckets));
+    HashFunction(i,HT->global_depth,&(HT->bucket[i].HashCode));
+  }
+
+
   if(id!=NULL){
     int i;
     for(i=0;i<(power(2,HT->global_depth));i++){
@@ -286,8 +300,14 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
     }
   }
   else{
-
+    CALL_BF(BF_GetBlock(indexDesc, 1, block));
+    records_data = BF_Block_GetData(block);
+    for(int i=0; i<2;i++){
+      memcpy(record, records_data+i*sizeof(Record), sizeof(Record));
+      // printRecord(*record);
+    }
   }
+
   return HT_OK;
 }
 

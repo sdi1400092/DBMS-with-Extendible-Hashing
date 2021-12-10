@@ -171,7 +171,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  //printf("id: %d\n", record.id);
+  printf("id: %d\n", record.id);
   
   BF_Block *block, *Dirblock;
   BF_Block_Init(&block);
@@ -240,24 +240,22 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     BF_Block *temp_block;
     BF_Block_Init(&temp_block);
     CALL_BF(BF_AllocateBlock(indexDesc, temp_block));
-    printf("3\n");
     int k=(HT->global_depth)-(HT->bucket[i].local_depth);
     int z=i;
     for(int j=0;j<power(2,k);j++){
       HT->bucket[z].local_depth+=1;
       z++;
     }
-    printf("4\n");
     int blocknum;
     BF_GetBlockCounter(indexDesc, &blocknum);
     for(int j=i+(power(2,k))-1;j>=(i+(power(2,k)/2));j--){
       HT->bucket[j].number_of_block = blocknum - 1;
     }
-    if(record.id>=32){
-      for(int a=0;a<power(2, HT->global_depth);a++){
-        printf("bucket: %d depth: %d block: %d\n",a, HT->bucket[a].local_depth , HT->bucket[a].number_of_block);
-      }
-    }
+    // if(record.id>=32){
+    //   for(int a=0;a<power(2, HT->global_depth);a++){
+    //     printf("bucket: %d depth: %d block: %d\n",a, HT->bucket[a].local_depth , HT->bucket[a].number_of_block);
+    //   }
+    // }
 
     BF_Block_SetDirty(temp_block);
     CALL_BF(BF_UnpinBlock(temp_block));
@@ -266,14 +264,12 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     HT->bucket[i].number_of_registries = 0;
 
     data = BF_Block_GetData(Dirblock);
-    printf("5\n");
     memcpy(data, &(HT->global_depth), sizeof(int));
     for(int j=0;j<power(2,HT->global_depth);j++){
       memcpy(data+sizeof(int)+(j*sizeof(buckets)),&(HT->bucket[j]),sizeof(buckets));
     }
     BF_Block_SetDirty(Dirblock);
     CALL_BF(BF_UnpinBlock(Dirblock));
-    printf("6\n");
 
     Record *temp_record;
     temp_record = (Record *) malloc(sizeof(Record));
@@ -281,7 +277,6 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       memcpy(temp_record, data2 + j*sizeof(struct Record), sizeof(struct Record));
       HT_InsertEntry(indexDesc, *temp_record);
     }
-    printf("7\n");
     free(temp_record);
     HT_InsertEntry(indexDesc, record);  
 

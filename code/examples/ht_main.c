@@ -5,7 +5,7 @@
 #include "bf.h"
 #include "hash_file.h"
 
-#define RECORDS_NUM 10 // you can change it if you want
+#define RECORDS_NUM 50 // you can change it if you want
 #define GLOBAL_DEPT 2 // you can change it if you want
 #define FILE_NAME "data.db"
 
@@ -89,10 +89,10 @@ int main() {
 
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
-  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  // CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
+  // CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
 
 
   CALL_OR_DIE(HT_CloseFile(indexDesc));
-  // BF_Close();
+  BF_Close();
 }

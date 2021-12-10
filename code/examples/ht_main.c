@@ -95,4 +95,8 @@ int main() {
 
   CALL_OR_DIE(HT_CloseFile(indexDesc));
   BF_Close();
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> cdc38f5902441054866d87c706300dc4c69bac40

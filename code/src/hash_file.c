@@ -171,7 +171,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  printf("id: %d\n", record.id);
+  // printf("id: %d\n", record.id);
   
   BF_Block *block, *Dirblock;
   BF_Block_Init(&block);
@@ -185,12 +185,19 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     HashFunction(i,HT->global_depth,&(HT->bucket[i].HashCode));
   }
   HashFunction(record.id, HT->global_depth, &hashing);
+
+  printf("id: %d\n", record.id);
+
+
   int counter;
   for(i=0;i<(power(2,HT->global_depth));i++){
     counter=0;
-    for(int j=(HT->bucket[i].local_depth)-1;j>=0;j--){
+    printf("Bucket: %d\n",i);
+    for(int j=0;j<(HT->bucket[i].local_depth);j++){
       if (HT->bucket[i].HashCode[j]== hashing[j]){
         counter++;
+        printf("Hashcode %d",HT->bucket[i].HashCode[j]);
+        printf(" = Hashing %d\n",hashing[j]);
       }
     }
     if(counter == HT->bucket[i].local_depth){
@@ -210,52 +217,46 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     if(HT->bucket[i].local_depth == HT->global_depth){
       //expand
       HT->global_depth += 1;
-      buckets *temp;
-      temp = (buckets *) malloc((power(2,HT->global_depth-1)) * sizeof(buckets));
-      for(int j=0 ; j<power(2,HT->global_depth-1) ; j++){
-        temp[j].HashCode=HT->bucket[j].HashCode;
-        temp[j].local_depth=HT->bucket[j].local_depth;
-        temp[j].maxSize=HT->bucket[j].maxSize;
-        temp[j].number_of_block=HT->bucket[j].number_of_block;
-        temp[j].number_of_registries=HT->bucket[j].number_of_registries;
-      }
+      // buckets *temp;
+      // temp = (buckets *) malloc((power(2,HT->global_depth-1)) * sizeof(buckets));
+      // for(int j=0 ; j<power(2,HT->global_depth-1) ; j++){
+      //   temp[j].HashCode=HT->bucket[j].HashCode;
+      //   temp[j].local_depth=HT->bucket[j].local_depth;
+      //   temp[j].maxSize=HT->bucket[j].maxSize;
+      //   temp[j].number_of_block=HT->bucket[j].number_of_block;
+      //   temp[j].number_of_registries=HT->bucket[j].number_of_registries;
+      // }
       HT->bucket=(buckets *) realloc(HT->bucket,power(2,HT->global_depth)*sizeof(buckets));
       int z=0;
-      for(int j=0;j<(power(2,HT->global_depth));j+=2){
-        HT->bucket[j]=temp[z];
-        HT->bucket[j+1]=temp[z];
+      for(int j=(power(2,HT->global_depth-1));j<(power(2,HT->global_depth));j+=1){
+        HT->bucket[j]=HT->bucket[z];
         z+=1;
       }
       //Hashing
       for(int j=0;j<power(2,HT->global_depth);j++){
+        free(HT->bucket[j].HashCode);
         HT->bucket[j].HashCode = (int *) malloc(HT->global_depth*sizeof(int));
-        int n = j;
-        for(z=0;z<HT->global_depth;z++){
-          HT->bucket[j].HashCode[z]=n%2;
-          n=n/2;
-        }
+        HashFunction(j,HT->global_depth,&(HT->bucket[j].HashCode));
       }
     }
+
     //split
     BF_Block *temp_block;
     BF_Block_Init(&temp_block);
     CALL_BF(BF_AllocateBlock(indexDesc, temp_block));
     int k=(HT->global_depth)-(HT->bucket[i].local_depth);
     int z=i;
-    for(int j=0;j<power(2,k);j++){
+    for(int j=1;j<=power(2,k);j++){
       HT->bucket[z].local_depth+=1;
-      z++;
+      z += j*power(2, HT->bucket[i].local_depth-1);
     }
     int blocknum;
     BF_GetBlockCounter(indexDesc, &blocknum);
-    for(int j=i+(power(2,k))-1;j>=(i+(power(2,k)/2));j--){
-      HT->bucket[j].number_of_block = blocknum - 1;
+    z=i;
+    for(int j=1;j<=(power(2,k)/2);j++){
+      z += j*power(2, HT->bucket[i].local_depth-1);
+      HT->bucket[z].number_of_block = blocknum - 1;
     }
-    // if(record.id>=32){
-    //   for(int a=0;a<power(2, HT->global_depth);a++){
-    //     printf("bucket: %d depth: %d block: %d\n",a, HT->bucket[a].local_depth , HT->bucket[a].number_of_block);
-    //   }
-    // }
 
     BF_Block_SetDirty(temp_block);
     CALL_BF(BF_UnpinBlock(temp_block));

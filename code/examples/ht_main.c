@@ -89,8 +89,8 @@ int main() {
 
   printf("RUN PrintAllEntries\n");
   int id = rand() % RECORDS_NUM;
-  // CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
-  // CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
+  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, &id));
+  CALL_OR_DIE(HT_PrintAllEntries(indexDesc, NULL));
 
 
   CALL_OR_DIE(HT_CloseFile(indexDesc));

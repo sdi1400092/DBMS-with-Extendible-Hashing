@@ -28,7 +28,6 @@ typedef struct {
 typedef struct {
   buckets *bucket;
   int global_depth;
-  int next_block;
 }HashTable;
 
 int Open_files[MAX_OPEN_FILES];
@@ -171,8 +170,6 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   Record *temp = &record;
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
-  // printf("id: %d\n", record.id);
-  
   BF_Block *block, *Dirblock;
   BF_Block_Init(&block);
   BF_Block_Init(&Dirblock);
@@ -186,18 +183,12 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   }
   HashFunction(record.id, HT->global_depth, &hashing);
 
-  printf("id: %d\n", record.id);
-
-
   int counter;
   for(i=0;i<(power(2,HT->global_depth));i++){
     counter=0;
-    printf("Bucket: %d\n",i);
     for(int j=0;j<(HT->bucket[i].local_depth);j++){
       if (HT->bucket[i].HashCode[j]== hashing[j]){
         counter++;
-        printf("Hashcode %d",HT->bucket[i].HashCode[j]);
-        printf(" = Hashing %d\n",hashing[j]);
       }
     }
     if(counter == HT->bucket[i].local_depth){
@@ -212,20 +203,20 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
     HT->bucket[i].number_of_registries++;
+
+    CALL_BF(BF_GetBlock(indexDesc, 0, Dirblock));
+    data = BF_Block_GetData(Dirblock);
+    memcpy(data, &(HT->global_depth), sizeof(int));
+    for(i=0;i<power(2,HT->global_depth);i++){
+      memcpy(data+sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
+    }
+
   }
   else{
+    
     if(HT->bucket[i].local_depth == HT->global_depth){
       //expand
       HT->global_depth += 1;
-      // buckets *temp;
-      // temp = (buckets *) malloc((power(2,HT->global_depth-1)) * sizeof(buckets));
-      // for(int j=0 ; j<power(2,HT->global_depth-1) ; j++){
-      //   temp[j].HashCode=HT->bucket[j].HashCode;
-      //   temp[j].local_depth=HT->bucket[j].local_depth;
-      //   temp[j].maxSize=HT->bucket[j].maxSize;
-      //   temp[j].number_of_block=HT->bucket[j].number_of_block;
-      //   temp[j].number_of_registries=HT->bucket[j].number_of_registries;
-      // }
       HT->bucket=(buckets *) realloc(HT->bucket,power(2,HT->global_depth)*sizeof(buckets));
       int z=0;
       for(int j=(power(2,HT->global_depth-1));j<(power(2,HT->global_depth));j+=1){
@@ -256,6 +247,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     for(int j=1;j<=(power(2,k)/2);j++){
       z += j*power(2, HT->bucket[i].local_depth-1);
       HT->bucket[z].number_of_block = blocknum - 1;
+      HT->bucket[z].number_of_registries = 0;
     }
 
     BF_Block_SetDirty(temp_block);
@@ -263,6 +255,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
     int x = HT->bucket[i].number_of_registries;
     HT->bucket[i].number_of_registries = 0;
+
 
     data = BF_Block_GetData(Dirblock);
     memcpy(data, &(HT->global_depth), sizeof(int));
@@ -279,14 +272,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       HT_InsertEntry(indexDesc, *temp_record);
     }
     free(temp_record);
-    HT_InsertEntry(indexDesc, record);  
-
-  }
-
-  data = BF_Block_GetData(Dirblock);
-  memcpy(data, &(HT->global_depth), sizeof(int));
-  for(i=0;i<power(2,HT->global_depth);i++){
-    memcpy(data+sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
+    HT_InsertEntry(indexDesc, record);
   }
 
   free(HT->bucket);
@@ -323,6 +309,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
       BF_GetBlock(indexDesc,HT->bucket[i].number_of_block,block);
       data= BF_Block_GetData(block);
       //print records of block data
+      printf("bucket: %d with %d registries\n", HT->bucket[i].number_of_block, HT->bucket[i].number_of_registries);
       for(int j=0 ; j<HT->bucket[i].number_of_registries ; j++){
         memcpy(record, data + j*sizeof(Record), sizeof(Record));
         printRecord(*record);
@@ -355,9 +342,10 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
     }
   }
 
-  free(HT->bucket);
-  free(HT);
-  free(record);
+  // free(HT->bucket);
+  // printf("geia\n");
+  // free(HT);
+  // printf("geia2\n");
 
   return HT_OK;
 }

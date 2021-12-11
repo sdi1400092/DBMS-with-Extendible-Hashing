@@ -272,7 +272,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       HT_InsertEntry(indexDesc, *temp_record);
     }
     free(temp_record);
-    HT_InsertEntry(indexDesc, record);
+    //HT_InsertEntry(indexDesc, record);
   }
 
   free(HT->bucket);

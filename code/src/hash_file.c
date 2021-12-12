@@ -75,10 +75,12 @@ int power(int base, int exp){
   return result;
 }
 
-HT_ErrorCode update(HashTable *HT, int indexdesc){
-  int *data;
-  BF_Block *tempBlock;
+HT_ErrorCode updateDirectory(HashTable *HT, int indexdesc){
+  int *data, *data2;
+  BF_Block *tempBlock, *tempBlock2;
   BF_Block_Init(&tempBlock);
+  BF_Block_Init(&tempBlock2);
+
   CALL_BF(BF_GetBlock(indexdesc,0,tempBlock));
   data=BF_Block_GetData(tempBlock);
   memcpy(data, &(HT->global_depth), sizeof(int));
@@ -94,16 +96,68 @@ HT_ErrorCode update(HashTable *HT, int indexdesc){
     CALL_BF(BF_UnpinBlock(tempBlock));
   }
   else{
-    int i;
+    int i, counter = power(2, HT->global_depth);
     for( i=0;i<HT->max_buckets;i++){
       memcpy(data+4*sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
+      counter--;
     }
-    int *x;
-    memcpy(x,data+3*sizeof(int),sizeof(int));
-    while(*x>0){
+    memcpy(data+2*sizeof(int), &i, sizeof(int)); //update number of buckets 
+    int *x = -1, *temp_numofnextblock;
+    memcpy(x,data+3*sizeof(int),sizeof(int)); //x=number of next block
+    temp_numofnextblock = 0;
+    BF_Block_SetDirty(tempBlock);
+    CALL_BF(BF_UnpinBlock(tempBlock));
 
+    while(*x>0){
+      CALL_BF(BF_GetBlock(indexdesc, *x, tempBlock2));
+      data2 = BF_Block_GetData(tempBlock2);
+      for( i=0;i<HT->max_buckets || counter>0 ; i++){
+        memcpy(data2+4*sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
+        counter--;
+      }
+      memcpy(data2+2*sizeof(int), &i, sizeof(int)); //update number of buckets 
+      temp_numofnextblock = x;
+      memcpy(x, data2+3*sizeof(int), sizeof(int));
+      BF_Block_SetDirty(tempBlock2);
+      CALL_BF(BF_UnpinBlock(tempBlock2));
+    }
+
+    if(counter>0){
+      int temp=counter;
+      for(i=0 ; i<temp/HT->max_buckets ; i++){
+        //allocate new blocks for directory
+        CALL_BF(BF_AllocateBlock(indexdesc, tempBlock2));
+        data2 = BF_Block_GetData(tempBlock2);
+
+        //set number of next block for the last allocated block
+        CALL_BF(BF_GetBlock(indexdesc, *temp_numofnextblock, tempBlock));
+        data = BF_Block_GetData(tempBlock);
+        int block_num;
+        CALL_BF(BF_GetBlockCounter(indexdesc, &block_num));
+        block_num--;
+        memcpy(data+3*sizeof(int), &(block_num), sizeof(int));
+        BF_Block_SetDirty(tempBlock);
+        CALL_BF(BF_UnpinBlock(tempBlock));
+
+        memcpy(data2+3*sizeof(int), x, sizeof(int)); //x=number of next block
+        int j=0;
+        while(counter>0 || j<HT->max_buckets){
+          memcpy(data2+4*sizeof(int)+(i*sizeof(buckets)), &(HT->bucket[i]), sizeof(buckets));
+          counter--;
+          j++;
+        }
+        memcpy(data2+2*sizeof(int), &j, sizeof(int)); //update number of buckets 
+        *temp_numofnextblock = block_num;
+        BF_Block_SetDirty(tempBlock2);
+        CALL_BF(BF_UnpinBlock(tempBlock2));
+      }
     }
   }
+  return HT_OK;
+}
+
+HT_ErrorCode getDirectory(HashTable **HT, int indexdesc){
+  
 }
 
 HT_ErrorCode HT_Init() {

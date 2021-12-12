@@ -28,6 +28,7 @@ typedef struct {
 typedef struct {
   buckets *bucket;
   int global_depth;
+  int max_buckets;
 }HashTable;
 
 int Open_files[MAX_OPEN_FILES];
@@ -74,6 +75,37 @@ int power(int base, int exp){
   return result;
 }
 
+HT_ErrorCode update(HashTable *HT, int indexdesc){
+  int *data;
+  BF_Block *tempBlock;
+  BF_Block_Init(&tempBlock);
+  CALL_BF(BF_GetBlock(indexdesc,0,tempBlock));
+  data=BF_Block_GetData(tempBlock);
+  memcpy(data, &(HT->global_depth), sizeof(int));
+  memcpy(data+sizeof(int), &(HT->max_buckets), sizeof(int));
+  if(power(2,HT->global_depth)<=HT->max_buckets){
+    int i,num_of_buckets=power(2,HT->global_depth),num_of_next_block=-1;
+    memcpy(data+2*sizeof(int), num_of_buckets, sizeof(int));
+    memcpy(data+3*sizeof(int), num_of_next_block, sizeof(int));
+    for( i=0;i<power(2,HT->global_depth);i++){
+      memcpy(data+4*sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
+    }
+    BF_Block_SetDirty(tempBlock);
+    CALL_BF(BF_UnpinBlock(tempBlock));
+  }
+  else{
+    int i;
+    for( i=0;i<HT->max_buckets;i++){
+      memcpy(data+4*sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
+    }
+    int *x;
+    memcpy(x,data+3*sizeof(int),sizeof(int));
+    while(*x>0){
+
+    }
+  }
+}
+
 HT_ErrorCode HT_Init() {
   //insert code here 
   int i;
@@ -94,7 +126,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   HT->bucket = (buckets *) malloc(power(2,depth)*sizeof(buckets));
   for(i=0;i<power(2,depth);i++){
     HT->bucket[i].local_depth = depth;
-    HT->bucket[i].maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record) + 1);
+    HT->bucket[i].maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
     HT->bucket[i].number_of_registries = 0;
     n=i;
     HT->bucket[i].HashCode =malloc(depth*sizeof(int));
@@ -104,6 +136,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
     }
   }
   HT->global_depth = depth;
+  HT->max_buckets= (BF_BLOCK_SIZE-(4*sizeof(int)))/sizeof(buckets);
 
   CALL_BF(BF_OpenFile(filename, &file_desc));
   BF_Block *temp_block;
@@ -213,7 +246,6 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
   }
   else{
-    
     if(HT->bucket[i].local_depth == HT->global_depth){
       //expand
       HT->global_depth += 1;
@@ -230,7 +262,6 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
         HashFunction(j,HT->global_depth,&(HT->bucket[j].HashCode));
       }
     }
-
     //split
     BF_Block *temp_block;
     BF_Block_Init(&temp_block);
@@ -272,7 +303,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       HT_InsertEntry(indexDesc, *temp_record);
     }
     free(temp_record);
-    //HT_InsertEntry(indexDesc, record);
+    HT_InsertEntry(indexDesc, record);
   }
 
   free(HT->bucket);

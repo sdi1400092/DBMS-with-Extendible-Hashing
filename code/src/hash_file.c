@@ -11,7 +11,7 @@
 #define CALL_BF(call)       \
 {                           \
   BF_ErrorCode code = call; \
-  if (code != BF_OK) {         \
+  if (code != BF_OK) {      \
     BF_PrintError(code);    \
     return HT_ERROR;        \
   }                         \
@@ -35,7 +35,7 @@ int Open_files[MAX_OPEN_FILES];
 
 void HashFunction(int id, int depth, int **hashing){
   int i, *binary;
-  binary = (int *) malloc(sizeof(int));
+  binary = (int *) malloc(depth*sizeof(int));
   for(i=0;i<depth;i++){
     binary[i] = id%2;
     id = id/2;
@@ -341,7 +341,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       }
       //Hashing
       for(int j=0;j<power(2,HT->global_depth);j++){
-        free(HT->bucket[j].HashCode);
+        //free(HT->bucket[j].HashCode);
         HT->bucket[j].HashCode = (int *) malloc(HT->global_depth*sizeof(int));
         HashFunction(j,HT->global_depth,&(HT->bucket[j].HashCode));
       }
@@ -382,6 +382,10 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     free(temp_record);
     HT_InsertEntry(indexDesc, record);
   }
+
+  BF_Block_SetDirty(block);
+  CALL_BF(BF_UnpinBlock(block));
+  
   free(HT->bucket);
   free(HT);
 }
@@ -414,10 +418,12 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
           count++;
         }
       }
+      CALL_BF(BF_UnpinBlock(block));
     }
     printf("count = %d\n", count);
   }
   else{
+    
     printf("id to be found = %d\n", *id);
     HashFunction(*id, HT->global_depth, &id_hashing);
     int counter, block_num;
@@ -432,6 +438,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
         break;
       }
     }
+
     block_num = HT->bucket[i].number_of_block;
     CALL_BF(BF_GetBlock(indexDesc, block_num, block));
     data = BF_Block_GetData(block);
@@ -441,6 +448,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
         printRecord(*record);
       }
     }
+    CALL_BF(BF_UnpinBlock(block));
   }
 
   free(HT->bucket);

@@ -17,6 +17,9 @@
   }                         \
 }
 
+//a struct for the buckets
+//technically its a struct that stores info on the bucket and a point(number)
+//of the block the data is stored
 typedef struct {
   int *HashCode;
   int number_of_block; //με τη παραδοχη οτι 1 block = 1 καδος
@@ -25,14 +28,20 @@ typedef struct {
   int maxSize;
 }buckets;
 
+//a struct for the HashTable that consists of an array of buckets
+//the global depth of the table and max buckets is an assistant variable 
+//responsible for storing the max number of struct buckets that can be stored
+//in one block
 typedef struct {
   buckets *bucket;
   int global_depth;
   int max_buckets;
 }HashTable;
 
+//open files is an array of integers responsible for storing all the open files at any time
 int Open_files[MAX_OPEN_FILES];
 
+//a function that turns a decimal number to the equivalent number in binary and return an array of the 0s and 1s
 void HashFunction(int id, int depth, int **hashing){
   int i, *binary;
   binary = (int *) malloc(depth*sizeof(int));
@@ -43,6 +52,7 @@ void HashFunction(int id, int depth, int **hashing){
   *hashing = binary;
 }
 
+//a function the takes as an argument a record and prints it
 void printRecord(Record record){
   printf("Id: %d\n",record.id);
   int i;
@@ -66,6 +76,7 @@ void printRecord(Record record){
   printf("\n");
 }
 
+//power calculates the x^y expression 
 int power(int base, int exp){
   int result = 1;
   while(exp!=0){
@@ -75,6 +86,8 @@ int power(int base, int exp){
   return result;
 }
 
+//a function that updates the existing directory in the blocks and allocates any new blocks that are needed
+//in case the existing ones area not enough for storing the whole directory
 HT_ErrorCode updateDirectory(HashTable *HT, int indexdesc){
 
   char *data, *data2;
@@ -162,6 +175,8 @@ HT_ErrorCode updateDirectory(HashTable *HT, int indexdesc){
   return HT_OK;
 }
 
+//a function that copies the existing directory from the blocks of the file to an existing variable HT 
+//passed by reference
 void getDirectory(HashTable **HT, int indexdesc){  
   int *hashing, i, counter=0, number_of_buckets, next_block;
   char *data, *data2;
@@ -193,6 +208,7 @@ void getDirectory(HashTable **HT, int indexdesc){
   }
 }
 
+//initializing the open files variable
 HT_ErrorCode HT_Init() {
   //insert code here 
   int i;
@@ -202,16 +218,21 @@ HT_ErrorCode HT_Init() {
   return HT_OK;
 }
 
+//creates a file with name = filename and creates an empty directory for this file with starting
+//global_depth = depth and 2^depth buckets
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   int id, i, j, n, file_desc, **binary;
   char *data;
 
   CALL_BF(BF_CreateFile(filename));
 
+  //creating HT and allocating required space for it
   HashTable *HT;
   HT = (HashTable *) malloc(sizeof(HashTable));
+  //allocating space for 2^depth buckets
   HT->bucket = (buckets *) malloc(power(2,depth)*sizeof(buckets));
   for(i=0;i<power(2,depth);i++){
+    //gives starting values to every bucket
     HT->bucket[i].local_depth = depth;
     HT->bucket[i].maxSize = MAX_SIZE_OF_BUCKET/(sizeof(struct Record));
     HT->bucket[i].number_of_registries = 0;
@@ -222,9 +243,11 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
       n=n/2;
     }
   }
+  //giving starting values to HashTable
   HT->global_depth = depth;
   HT->max_buckets= (BF_BLOCK_SIZE-(4*sizeof(int)))/sizeof(buckets);
 
+  //opens file and allocates one block for the directory
   CALL_BF(BF_OpenFile(filename, &file_desc));
   BF_Block *temp_block;
   BF_Block_Init(&temp_block);
@@ -232,26 +255,30 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   int block_num;
   data = BF_Block_GetData(temp_block);
 
+  //allocates one block for every bucket
   BF_Block *temp_block2;
   BF_Block_Init(&temp_block2);
   for(i=0;i<power(2,depth);i++){ 
     CALL_BF(BF_AllocateBlock(file_desc, temp_block2));
     CALL_BF(BF_GetBlockCounter(file_desc,&block_num));
     HT->bucket[i].number_of_block= block_num -1;
+    //setting the blocks for the buckets dirty and upnin them
     BF_Block_SetDirty(temp_block2);
     CALL_BF(BF_UnpinBlock(temp_block2));
   }
 
+  //copying the directory to the first block of the file
   memcpy(data, &(HT->global_depth), sizeof(int));
   memcpy(data+sizeof(int), &(HT->max_buckets), sizeof(int));
   int x;
   x = power(2, HT->global_depth);
-  memcpy(data+2*sizeof(int), &x, sizeof(int));
+  memcpy(data+2*sizeof(int), &x, sizeof(int)); //x is the number of how many buckets are stored in the block
   x = -1;
-  memcpy(data+3*sizeof(int), &x, sizeof(int));
+  memcpy(data+3*sizeof(int), &x, sizeof(int)); //here x is the number of the next block if its -1 it means there's no next block
   for( i=0;i<power(2,HT->global_depth);i++){
     memcpy(data+4*sizeof(int)+(i*sizeof(buckets)),&(HT->bucket[i]),sizeof(buckets));
   }
+  //setting dirty that block and upnining it
   BF_Block_SetDirty(temp_block);
   CALL_BF(BF_UnpinBlock(temp_block));
 
@@ -263,6 +290,8 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   return HT_OK;
 }
 
+//a function that opens a file with name = filename and return an id at the varaible indexDesc
+//and adds the indexDesc of the file to the open files array
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
   //insert code here
   int i;
@@ -277,7 +306,8 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
   }
   return HT_OK;
 }
- 
+
+//closes file with id = indexDesc and remove the indexDesc of the file from the open files array
 HT_ErrorCode HT_CloseFile(int indexDesc) {
   //insert code here
   int i;
@@ -290,6 +320,7 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
   return HT_OK;
 }
 
+//a function responsible for inserting an entry at the file via the directory
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   //insert code here
   int *hashing, i, offset;
@@ -304,6 +335,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
   HashFunction(record.id, HT->global_depth, &hashing);
 
+  //find in which bucket the record we want to insert should go
   int counter;
   for(i=0;i<(power(2,HT->global_depth));i++){
     counter=0;
@@ -317,19 +349,24 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
     }
   }
 
+  //we get that block from the memory
   CALL_BF(BF_GetBlock(indexDesc, HT->bucket[i].number_of_block, block));
   data2 = BF_Block_GetData(block);
   offset = HT->bucket[i].number_of_registries;
+  //if the block has space for the registry we store it in there 
   if (offset < HT->bucket[i].maxSize){
     memcpy(data2 + offset*sizeof(struct Record), temp, sizeof(struct Record));
     BF_Block_SetDirty(block);
     CALL_BF(BF_UnpinBlock(block));
     HT->bucket[i].number_of_registries++;
 
+    //after updating the directory we store the updated one in the memory
     updateDirectory(HT, indexDesc);
 
   }
+  //if there's no space in that bucket we have two cases
   else{
+    //if the local depth of the bucket is equal to the global depth it means that we need to expand
     if(HT->bucket[i].local_depth == HT->global_depth){
       //expand
       HT->global_depth += 1;
@@ -341,14 +378,17 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       }
       //Hashing
       for(int j=0;j<power(2,HT->global_depth);j++){
-        //free(HT->bucket[j].HashCode);
         HT->bucket[j].HashCode = (int *) malloc(HT->global_depth*sizeof(int));
         HashFunction(j,HT->global_depth,&(HT->bucket[j].HashCode));
       }
     }
+    //either if the expand took place or not we can split the existing bucket into two
+    //since the expand only creates the extra indexes for the buckets and doesnt create the actuall
+    //space for them
     //split
     BF_Block *temp_block;
     BF_Block_Init(&temp_block);
+    //allocate a new block for the split and change the values of the buckets that are being seperated
     CALL_BF(BF_AllocateBlock(indexDesc, temp_block));
     int k=(HT->global_depth)-(HT->bucket[i].local_depth);
     int z=i;
@@ -373,6 +413,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
     updateDirectory(HT, indexDesc);
 
+    //call the insert recursively to reorganize the existing registries of the bucket that got splited
     Record *temp_record;
     temp_record = (Record *) malloc(sizeof(Record));
     for(int j=0 ; j<x ; j++){
@@ -380,6 +421,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       HT_InsertEntry(indexDesc, *temp_record);
     }
     free(temp_record);
+    //call insert one last time for the original registry
     HT_InsertEntry(indexDesc, record);
   }
 
@@ -390,6 +432,8 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   free(HT);
 }
 
+//a function that either prints one record of the file via the directory or prints all of them
+//depending on how you call it 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
   //insert code here
   int *id_hashing, i, count=0, *printed, flag;
@@ -404,9 +448,14 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
   //get directory
   getDirectory(&HT, indexDesc);
   
+  //if no id was giving at the call of the function print all of the registries
   if(id==NULL){
     int i;
     for(i=0;i<(power(2,HT->global_depth));i++){
+      //in case there some bucketes with local depth < global depth this means there are two bucket indexes pointing 
+      //in the same block and since when new buckets are allocated their number is increasing and so is the index of
+      //of the bucket array if the index is bigger than the number of the block being pointed this means wehave already 
+      //printed that block
       if(i<HT->bucket[i].number_of_block){
         BF_GetBlock(indexDesc,HT->bucket[i].number_of_block,block);
         data= BF_Block_GetData(block);
@@ -423,7 +472,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
     printf("count = %d\n", count);
   }
   else{
-    
+    //if an id was given find that registry via the directory and print only that one
     printf("id to be found = %d\n", *id);
     HashFunction(*id, HT->global_depth, &id_hashing);
     int counter, block_num;
